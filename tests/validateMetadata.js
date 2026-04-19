@@ -13,11 +13,15 @@
  *  - contents/config/main.xml: well-formed XML; has the kcfg group
  *    "PlasmaSnap" with the "defaultDensity" and "shortcutKey" entries
  *    that main.qml reads.
- *  - tray desktop entry: required Desktop Entry keys, and the
- *    X-KDE-autostart-condition's file/group/key reference an actual key
- *    in the shipped default config.
+ *  - tray desktop entry: required Desktop Entry keys, OnlyShowIn=KDE; (tray
+ *    is Plasma/KWin-specific and must not autostart in non-KDE sessions),
+ *    and the X-KDE-autostart-condition's file/group/key reference an actual
+ *    key in the shipped default config.
  *  - tray default config: [General] trayIconEnabled exists, since the tray's
  *    main() treats it as the gating key.
+ *  - tray notification metadata: .notifyrc exists with [Event/effectNotAvailable]
+ *    matching the event id the tray emits via KNotification, and the basename
+ *    matches KAboutData::componentName so KF6 KNotification can resolve it.
  */
 
 var fs = require("fs");
@@ -118,6 +122,11 @@ console.log("tray desktop entry");
         "Exec points at the installed binary name");
     report(/^Icon=plasmasnap-grid\s*$/m.test(raw),
         "Icon=plasmasnap-grid (avoids XDG dash-fallback to breeze 'plasma' icon)");
+    // OnlyShowIn=KDE; — the tray drives a KWin-specific effect via KGlobalAccel
+    // and org.kde.KWin D-Bus services, so autostarting it in GNOME/XFCE/etc.
+    // would spawn a tray icon that cannot do anything useful.
+    report(/^OnlyShowIn=KDE;\s*$/m.test(raw),
+        "OnlyShowIn=KDE; present (tray is KDE-session only)");
     // X-KDE-autostart-condition ties into the default config — if these drift
     // apart, autostart either never fires or fires when the user disabled it.
     var m = raw.match(/^X-KDE-autostart-condition=([^:\n]+):([^:\n]+):([^:\n]+):([^:\n]+)\s*$/m);
@@ -143,6 +152,58 @@ console.log("tray desktop entry");
     }
     report(/\[General\]/.test(cfg) && /^\s*trayIconEnabled\s*=\s*true\s*$/m.test(cfg),
         "default config's [General] trayIconEnabled=true matches autostart-condition");
+})();
+
+console.log("tray notification metadata: plasma-snap-assistant-tray.notifyrc");
+(function checkNotifyrc() {
+    // The basename must match KAboutData::componentName set in main.cpp —
+    // KF6 KNotification resolves <componentName>.notifyrc via QStandardPaths,
+    // so a rename here silently breaks notification event delivery.
+    var notifyrcPath =
+        "plasma-snap-assistant-tray/resources/plasma-snap-assistant-tray.notifyrc";
+    var raw;
+    try {
+        raw = read(notifyrcPath);
+    } catch (e) {
+        report(false, "file exists", e.message); return;
+    }
+    report(/\[Global\]/.test(raw), "[Global] section present");
+    report(/^IconName=/m.test(raw), "[Global] IconName key present");
+    report(/^Name=/m.test(raw), "[Global] Name key present");
+    report(/\[Event\/effectNotAvailable\]/.test(raw),
+        "[Event/effectNotAvailable] section present (matches KNotification id in main.cpp)");
+    // Cross-check: the event id used by the source must match the .notifyrc.
+    // If the source emits an id that isn't defined here, the notification
+    // still shows but with empty/default metadata and no user-visible name.
+    var cpp;
+    try {
+        cpp = read("plasma-snap-assistant-tray/src/main.cpp");
+    } catch (e) {
+        report(false, "main.cpp readable for cross-check", e.message); return;
+    }
+    var eventIds = [];
+    var rx = /KNotification\s*\(\s*QStringLiteral\s*\(\s*"([^"]+)"\s*\)\s*\)/g;
+    var match;
+    while ((match = rx.exec(cpp)) !== null) {
+        eventIds.push(match[1]);
+    }
+    report(eventIds.length > 0,
+        "main.cpp emits at least one KNotification event id",
+        "found " + eventIds.length);
+    eventIds.forEach(function (id) {
+        var section = "[Event/" + id + "]";
+        report(raw.indexOf(section) !== -1,
+            "notifyrc defines " + section + " for KNotification id '" + id + "'");
+    });
+    // Cross-check: KAboutData componentName must match the .notifyrc basename
+    // (without the trailing .notifyrc), otherwise KF6 cannot resolve events.
+    var componentMatch = cpp.match(
+        /KAboutData\s+\w+\s*\(\s*QStringLiteral\s*\(\s*"([^"]+)"\s*\)/);
+    if (!componentMatch) {
+        report(false, "KAboutData componentName parseable from main.cpp"); return;
+    }
+    report(componentMatch[1] === "plasma-snap-assistant-tray",
+        "KAboutData componentName matches notifyrc basename");
 })();
 
 console.log("");
