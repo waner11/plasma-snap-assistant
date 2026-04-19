@@ -14,6 +14,8 @@
  *      * D-Bus registration is a hard startup failure (main checks registerDBus)
  *      * triggerEffect distinguishes invalid/valid isEffectLoaded replies
  *      * invokeShortcut failure shows a user-visible notification
+ *      * triggerEffect uses async D-Bus (QDBusPendingCallWatcher), not
+ *        blocking call(), so the tray UI thread never stalls on KWin
  *  - kwin-effect-plasma-snap-assistant/contents/ui/main.qml
  *      * no dangling preSnapGeometry state (removed — see PR #1 review)
  *      * ShortcutHandler declares the PlasmaSnapAssistant shortcut name
@@ -63,12 +65,14 @@ console.log("plasma-snap-assistant-tray/src/main.cpp");
     report(/return\s+1\s*;/.test(src),
         "main() returns non-zero on D-Bus registration failure");
 
-    // Task 5: isEffectLoaded invalid reply is handled explicitly (not
-    // short-circuited into the invokeShortcut path).
-    report(/loaded\.isValid\s*\(\s*\)/.test(src),
-        "triggerEffect inspects QDBusReply::isValid()");
-    report(/!\s*loaded\.isValid\s*\(\s*\)/.test(src),
-        "triggerEffect handles !isValid() branch explicitly");
+    // Task 5: isEffectLoaded error reply is handled explicitly (not
+    // short-circuited into the invokeShortcut path). The async refactor
+    // uses QDBusPendingReply<bool>::isError() instead of the old sync
+    // QDBusReply::isValid(); both forms express the same invariant.
+    report(/reply\.isError\s*\(\s*\)/.test(src),
+        "triggerEffect inspects QDBusPendingReply::isError()");
+    report(/if\s*\(\s*reply\.isError\s*\(\s*\)\s*\)/.test(src),
+        "triggerEffect handles isError() branch explicitly");
 
     // Task 6: invokeShortcut failure shows a notification, not just a log line.
     report(/notifyFailure\s*\(/.test(src),
@@ -82,6 +86,37 @@ console.log("plasma-snap-assistant-tray/src/main.cpp");
 
     // KNotification is used for user-visible failure surfacing.
     report(/KNotification/.test(src), "KNotification is used for user-visible errors");
+
+    // Task: triggerEffect must not block the UI thread. The activation
+    // path must use asyncCall + QDBusPendingCallWatcher so a slow KWin or
+    // session bus never freezes the tray. Past regressions here reintroduced
+    // the sync QDBusInterface::call(...) pattern on the click path.
+    report(/QDBusPendingCallWatcher/.test(src),
+        "QDBusPendingCallWatcher is used (async D-Bus pattern)");
+    report(/\.asyncCall\s*\(/.test(src),
+        "asyncCall() is used on the activation path");
+    // Scope the sync-call ban to the triggerEffect body so the intentionally
+    // synchronous isEffectAvailable adaptor (called by external D-Bus peers,
+    // not the UI click path) does not trip this check.
+    var triggerBody = (function () {
+        var start = src.indexOf("void triggerEffect()");
+        if (start === -1) return "";
+        var depth = 0, i = src.indexOf("{", start);
+        if (i === -1) return "";
+        var body = "";
+        for (; i < src.length; i++) {
+            var ch = src[i];
+            body += ch;
+            if (ch === "{") depth++;
+            else if (ch === "}") { depth--; if (depth === 0) break; }
+        }
+        return body;
+    })();
+    report(triggerBody.length > 0, "triggerEffect body extracted for async-check");
+    report(!/\.call\s*\(\s*QStringLiteral/.test(triggerBody),
+        "triggerEffect does not use blocking QDBusInterface::call(...)");
+    report(!/QDBusReply\s*</.test(triggerBody),
+        "triggerEffect does not declare QDBusReply<> on the UI click path");
 })();
 
 console.log("kwin-effect-plasma-snap-assistant/contents/ui/main.qml");

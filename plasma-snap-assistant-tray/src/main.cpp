@@ -5,6 +5,10 @@
 #include <QDBusAbstractAdaptor>
 #include <QDBusConnection>
 #include <QDBusInterface>
+#include <QDBusMessage>
+#include <QDBusPendingCall>
+#include <QDBusPendingCallWatcher>
+#include <QDBusPendingReply>
 #include <QDBusReply>
 #include <QDebug>
 #include <QMenu>
@@ -42,6 +46,13 @@ public Q_SLOTS:
         static_cast<void>(QMetaObject::invokeMethod(parent(), "triggerEffect"));
     }
 
+    // Intentionally synchronous: this is a D-Bus method the tray *exposes*,
+    // and D-Bus callers expect a bool return value. It is NOT on the user
+    // click path (that goes through TrayApp::triggerEffect, which uses async
+    // D-Bus). The risk is bounded: it only runs when an external process
+    // queries isEffectAvailable, it talks to the already-running KWin on the
+    // same session bus, and a KWin hang here would just block the caller,
+    // not the tray's UI thread.
     bool isEffectAvailable()
     {
         QDBusInterface kwin(QStringLiteral("org.kde.KWin"),
@@ -136,52 +147,81 @@ public:
     }
 
 public Q_SLOTS:
+    // Non-blocking activation flow. Runs two asyncCalls in sequence:
+    //   (1) org.kde.KWin.Effects.isEffectLoaded("plasma-snap-assistant")
+    //   (2) org.kde.kglobalaccel.Component.invokeShortcut("PlasmaSnapAssistant")
+    //
+    // Each step's reply is delivered via QDBusPendingCallWatcher::finished on
+    // the Qt event loop, so the tray UI stays responsive even if KWin or the
+    // session bus is slow. The three failure branches match the previous
+    // synchronous implementation:
+    //   * isEffectLoaded errored      → "Could not reach KWin…"
+    //   * isEffectLoaded returned false → "effect not available"
+    //   * invokeShortcut errored      → "Could not trigger the shortcut…"
     void triggerEffect()
     {
-        qDebug() << "[PlasmaSnap] Triggering effect via KGlobalAccel";
+        qDebug() << "[PlasmaSnap] Triggering effect via KGlobalAccel (async)";
 
-        // First check whether the effect is even loaded. Three cases:
-        //   (1) reply invalid   — KWin/D-Bus unreachable; fail loudly, do not
-        //                         fall through to invokeShortcut (it would also
-        //                         fail but with a less actionable message).
-        //   (2) reply valid & false — effect not enabled; point user at settings.
-        //   (3) reply valid & true  — proceed to invokeShortcut.
-        QDBusInterface kwin(QStringLiteral("org.kde.KWin"),
-                            QStringLiteral("/Effects"),
-                            QStringLiteral("org.kde.kwin.Effects"));
-        QDBusReply<bool> loaded = kwin.call(QStringLiteral("isEffectLoaded"),
-                                            QStringLiteral("plasma-snap-assistant"));
-        if (!loaded.isValid()) {
-            qWarning() << "[PlasmaSnap] isEffectLoaded D-Bus call failed:"
-                       << loaded.error().message();
-            notifyFailure(QStringLiteral("Could not reach KWin to check effect status. "
-                                          "Is KWin running and the D-Bus session available?"));
-            return;
-        }
-        if (!loaded.value()) {
-            qDebug() << "[PlasmaSnap] Effect is not loaded, showing notification";
-            notifyFailure(QStringLiteral(
-                "Plasma Snap Assistant effect not available. "
-                "Enable it in System Settings → Desktop Effects."));
-            return;
-        }
-
-        // Invoke the shortcut through KGlobalAccel
-        QDBusInterface kglobalaccel(QStringLiteral("org.kde.kglobalaccel"),
-                                    QStringLiteral("/component/kwin"),
-                                    QStringLiteral("org.kde.kglobalaccel.Component"));
-        QDBusReply<void> reply = kglobalaccel.call(QStringLiteral("invokeShortcut"),
-                                                   QStringLiteral("PlasmaSnapAssistant"));
-        if (!reply.isValid()) {
-            qWarning() << "[PlasmaSnap] invokeShortcut failed:" << reply.error().message();
-            notifyFailure(QStringLiteral(
-                "Could not trigger the Plasma Snap Assistant shortcut. "
-                "Check that the effect is enabled and the PlasmaSnapAssistant "
-                "shortcut is registered (System Settings → Shortcuts)."));
-        }
+        QDBusMessage probe = QDBusMessage::createMethodCall(
+            QStringLiteral("org.kde.KWin"),
+            QStringLiteral("/Effects"),
+            QStringLiteral("org.kde.kwin.Effects"),
+            QStringLiteral("isEffectLoaded"));
+        probe << QStringLiteral("plasma-snap-assistant");
+        QDBusPendingCall pending = QDBusConnection::sessionBus().asyncCall(probe);
+        auto *watcher = new QDBusPendingCallWatcher(pending, this);
+        connect(watcher, &QDBusPendingCallWatcher::finished, this,
+                [this](QDBusPendingCallWatcher *w) {
+                    w->deleteLater();
+                    QDBusPendingReply<bool> reply = *w;
+                    // Branch 1: transport/service error — KWin unreachable.
+                    if (reply.isError()) {
+                        qWarning() << "[PlasmaSnap] isEffectLoaded D-Bus call failed:"
+                                   << reply.error().message();
+                        notifyFailure(QStringLiteral(
+                            "Could not reach KWin to check effect status. "
+                            "Is KWin running and the D-Bus session available?"));
+                        return;
+                    }
+                    // Branch 2: reply valid but effect not loaded.
+                    if (!reply.value()) {
+                        qDebug() << "[PlasmaSnap] Effect is not loaded, showing notification";
+                        notifyFailure(QStringLiteral(
+                            "Plasma Snap Assistant effect not available. "
+                            "Enable it in System Settings → Desktop Effects."));
+                        return;
+                    }
+                    // Branch 3: effect loaded — chain the shortcut invocation.
+                    invokeActivationShortcut();
+                });
     }
 
 private:
+    void invokeActivationShortcut()
+    {
+        QDBusMessage invoke = QDBusMessage::createMethodCall(
+            QStringLiteral("org.kde.kglobalaccel"),
+            QStringLiteral("/component/kwin"),
+            QStringLiteral("org.kde.kglobalaccel.Component"),
+            QStringLiteral("invokeShortcut"));
+        invoke << QStringLiteral("PlasmaSnapAssistant");
+        QDBusPendingCall pending = QDBusConnection::sessionBus().asyncCall(invoke);
+        auto *watcher = new QDBusPendingCallWatcher(pending, this);
+        connect(watcher, &QDBusPendingCallWatcher::finished, this,
+                [this](QDBusPendingCallWatcher *w) {
+                    w->deleteLater();
+                    QDBusPendingReply<> reply = *w;
+                    if (reply.isError()) {
+                        qWarning() << "[PlasmaSnap] invokeShortcut failed:"
+                                   << reply.error().message();
+                        notifyFailure(QStringLiteral(
+                            "Could not trigger the Plasma Snap Assistant shortcut. "
+                            "Check that the effect is enabled and the PlasmaSnapAssistant "
+                            "shortcut is registered (System Settings → Shortcuts)."));
+                    }
+                });
+    }
+
     void notifyFailure(const QString &text)
     {
         auto *notif = new KNotification(QStringLiteral("effectNotAvailable"));
