@@ -1,0 +1,28 @@
+# Minimum viable placeholder CMakeLists for tray package
+cmake_minimum_required(VERSION 3.20)
+project(plasma-snap-assistant-tray VERSION 0.1.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+
+find_package(Qt6 REQUIRED COMPONENTS Core DBus Widgets)
+find_package(KF6 REQUIRED COMPONENTS Notifications Config CoreAddons StatusNotifierItem)
+
+add_executable(plasma-snap-assistant-tray
+    src/main.cpp
+)
+
+target_link_libraries(plasma-snap-assistant-tray PRIVATE
+    Qt6::Core
+    Qt6::DBus
+    Qt6::Widgets
+    KF6::Notifications
+    KF6::ConfigCore
+    KF6::CoreAddons
+    KF6::StatusNotifierItem
+)
+
+install(TARGETS plasma-snap-assistant-tray DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES resources/plasma-snap-assistant-tray.desktop DESTINATION /etc/xdg/autostart)
+install(FILES resources/plasma-snap-assistant.svg DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps)

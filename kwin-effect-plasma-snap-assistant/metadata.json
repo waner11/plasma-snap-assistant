@@ -1,0 +1,19 @@
+{
+  "KPlugin": {
+    "Id": "plasma-snap-assistant",
+    "Name": "Plasma Snap Assistant",
+    "Description": "Visual window snapping overlay",
+    "Version": "0.1.0",
+    "License": "GPL-2.0-or-later",
+    "Authors": [
+      {
+        "Name": "Plasma Snap Assistant contributors"
+      }
+    ],
+    "Category": "Window Management",
+    "EnabledByDefault": false
+  },
+  "KPackageStructure": "KWin/Effect",
+  "X-Plasma-API": "declarativescript",
+  "X-KDE-Ordering": 90
+}

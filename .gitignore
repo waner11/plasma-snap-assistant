@@ -1,1 +1,14 @@
 .sisyphus/
+
+# build outputs
+/build/
+.plasma-snap-assistant-tray.build/
+plasma-snap-assistant-tray/build/
+*.qmlc
+*.jsc
+*.user
+
+# makepkg artifacts
+*.pkg.tar.*
+/src/
+/pkg/
