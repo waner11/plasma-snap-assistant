@@ -1,4 +1,4 @@
-.PHONY: install install-effect install-tray build-tray clean uninstall uninstall-tray test
+.PHONY: install install-effect install-tray build-tray clean uninstall uninstall-tray test test-js test-validate
 
 install: install-effect install-tray
 
@@ -25,9 +25,17 @@ install-tray: build-tray
 	@echo "To launch it now in the current session:"
 	@echo "    plasma-snap-assistant-tray &"
 
-test:
+test: test-js test-validate
+
+test-js:
 	node tests/zoneCalculator.test.js
 	node tests/eligibilityFilter.test.js
+
+# Lightweight static validation for sources and shipped metadata/config.
+# No Qt/KWin toolchain required — just node — so it runs in any CI environment.
+test-validate:
+	node tests/validateMetadata.js
+	node tests/validateSources.js
 
 clean:
 	rm -rf plasma-snap-assistant-tray/build

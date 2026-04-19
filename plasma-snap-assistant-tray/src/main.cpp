@@ -19,7 +19,10 @@
 // ---------------------------------------------------------------------------
 // DBus adaptor – published at org.kde.plasma_snap_assistant /Tray
 // Inherits QDBusAbstractAdaptor so QDBusConnection::registerObject with the
-// default ExportAdaptors flag actually exposes activate/quit/isEffectAvailable.
+// default ExportAdaptors flag actually exposes activate/isEffectAvailable.
+// quit() is intentionally NOT exposed: exiting the tray is a local action
+// invoked via the context menu, not something any same-session process
+// should be able to do.
 // ---------------------------------------------------------------------------
 class TrayAdaptor : public QDBusAbstractAdaptor
 {
@@ -37,12 +40,6 @@ public Q_SLOTS:
     {
         qDebug() << "[PlasmaSnap] DBus activate() called";
         static_cast<void>(QMetaObject::invokeMethod(parent(), "triggerEffect"));
-    }
-
-    void quit()
-    {
-        qDebug() << "[PlasmaSnap] DBus quit() called";
-        QApplication::quit();
     }
 
     bool isEffectAvailable()
@@ -113,15 +110,29 @@ public:
         auto *adaptor = new TrayAdaptor(this);
         Q_UNUSED(adaptor);
 
+        qDebug() << "[PlasmaSnap] Tray app initialised";
+    }
+
+    // Registers the service/object on the session bus. Returns false when
+    // either step fails so main() can exit with a non-zero status instead of
+    // leaving a half-functional tray (DBus activate() unreachable, yet the
+    // icon still visible).
+    bool registerDBus()
+    {
         QDBusConnection sessionBus = QDBusConnection::sessionBus();
         if (!sessionBus.registerService(QStringLiteral("org.kde.plasma_snap_assistant"))) {
-            qDebug() << "[PlasmaSnap] Could not register DBus service – another instance running?";
+            qWarning() << "[PlasmaSnap] Could not register DBus service"
+                       << "org.kde.plasma_snap_assistant – another instance running?"
+                       << sessionBus.lastError().message();
+            return false;
         }
         if (!sessionBus.registerObject(QStringLiteral("/Tray"), this)) {
-            qDebug() << "[PlasmaSnap] Could not register DBus object /Tray";
+            qWarning() << "[PlasmaSnap] Could not register DBus object /Tray:"
+                       << sessionBus.lastError().message();
+            sessionBus.unregisterService(QStringLiteral("org.kde.plasma_snap_assistant"));
+            return false;
         }
-
-        qDebug() << "[PlasmaSnap] Tray app initialised";
+        return true;
     }
 
 public Q_SLOTS:
@@ -129,21 +140,29 @@ public Q_SLOTS:
     {
         qDebug() << "[PlasmaSnap] Triggering effect via KGlobalAccel";
 
-        // First check whether the effect is even loaded
+        // First check whether the effect is even loaded. Three cases:
+        //   (1) reply invalid   — KWin/D-Bus unreachable; fail loudly, do not
+        //                         fall through to invokeShortcut (it would also
+        //                         fail but with a less actionable message).
+        //   (2) reply valid & false — effect not enabled; point user at settings.
+        //   (3) reply valid & true  — proceed to invokeShortcut.
         QDBusInterface kwin(QStringLiteral("org.kde.KWin"),
                             QStringLiteral("/Effects"),
                             QStringLiteral("org.kde.kwin.Effects"));
         QDBusReply<bool> loaded = kwin.call(QStringLiteral("isEffectLoaded"),
                                             QStringLiteral("plasma-snap-assistant"));
-        if (loaded.isValid() && !loaded.value()) {
+        if (!loaded.isValid()) {
+            qWarning() << "[PlasmaSnap] isEffectLoaded D-Bus call failed:"
+                       << loaded.error().message();
+            notifyFailure(QStringLiteral("Could not reach KWin to check effect status. "
+                                          "Is KWin running and the D-Bus session available?"));
+            return;
+        }
+        if (!loaded.value()) {
             qDebug() << "[PlasmaSnap] Effect is not loaded, showing notification";
-            auto *notif = new KNotification(QStringLiteral("effectNotAvailable"));
-            notif->setTitle(QStringLiteral("Plasma Snap Assistant"));
-            notif->setText(QStringLiteral(
+            notifyFailure(QStringLiteral(
                 "Plasma Snap Assistant effect not available. "
                 "Enable it in System Settings → Desktop Effects."));
-            notif->setIconName(QStringLiteral("dialog-warning"));
-            notif->sendEvent();
             return;
         }
 
@@ -154,8 +173,22 @@ public Q_SLOTS:
         QDBusReply<void> reply = kglobalaccel.call(QStringLiteral("invokeShortcut"),
                                                    QStringLiteral("PlasmaSnapAssistant"));
         if (!reply.isValid()) {
-            qDebug() << "[PlasmaSnap] invokeShortcut failed:" << reply.error().message();
+            qWarning() << "[PlasmaSnap] invokeShortcut failed:" << reply.error().message();
+            notifyFailure(QStringLiteral(
+                "Could not trigger the Plasma Snap Assistant shortcut. "
+                "Check that the effect is enabled and the PlasmaSnapAssistant "
+                "shortcut is registered (System Settings → Shortcuts)."));
         }
+    }
+
+private:
+    void notifyFailure(const QString &text)
+    {
+        auto *notif = new KNotification(QStringLiteral("effectNotAvailable"));
+        notif->setTitle(QStringLiteral("Plasma Snap Assistant"));
+        notif->setText(text);
+        notif->setIconName(QStringLiteral("dialog-warning"));
+        notif->sendEvent();
     }
 
 private Q_SLOTS:
@@ -216,6 +249,11 @@ int main(int argc, char *argv[])
     qDebug() << "[PlasmaSnap] Starting tray companion app v0.1.0";
 
     TrayApp trayApp;
+    if (!trayApp.registerDBus()) {
+        qCritical() << "[PlasmaSnap] D-Bus registration failed; refusing to start "
+                       "a half-functional tray. Exit code 1.";
+        return 1;
+    }
 
     return app.exec();
 }

@@ -42,6 +42,11 @@ install(FILES resources/plasma-snap-assistant-tray.desktop DESTINATION ${CMAKE_I
 # makes the app discoverable via KRunner / launcher search.
 install(FILES resources/plasma-snap-assistant-tray.desktop DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
 install(FILES resources/plasmasnap-grid.svg DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps)
+# Default config. Installed to /etc/xdg so KConfig picks it up as the
+# system-wide default; the X-KDE-autostart-condition in the .desktop file
+# references the same file/group/key, so the tray only autostarts when
+# the key is true (default).
+install(FILES config/plasma-snap-assistantrc DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/xdg)
 
 # Refresh the hicolor icon-theme cache so Qt/Plasma pick up the new SVG
 # without a logout or manual gtk-update-icon-cache. Skipped when DESTDIR

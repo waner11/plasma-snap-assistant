@@ -65,8 +65,10 @@ This target:
 - builds the tray with `-DCMAKE_INSTALL_PREFIX=/usr` and runs
   `sudo cmake --install`, which places:
   - `/usr/bin/plasma-snap-assistant-tray`
-  - `/usr/share/icons/hicolor/scalable/apps/plasma-snap-assistant.svg`
+  - `/usr/share/icons/hicolor/scalable/apps/plasmasnap-grid.svg`
+  - `/usr/share/applications/plasma-snap-assistant-tray.desktop`
   - `/etc/xdg/autostart/plasma-snap-assistant-tray.desktop`
+  - `/etc/xdg/plasma-snap-assistantrc` (system-wide tray default config)
 
 You will be prompted for your sudo password during the tray step.
 

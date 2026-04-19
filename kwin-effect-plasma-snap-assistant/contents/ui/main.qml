@@ -24,7 +24,6 @@ KWinComponents.SceneEffect {
     property bool activeOverlay: false
     property var targetWindow: null
     property string currentDensity: (root.configuration.defaultDensity || "8x6")
-    property var preSnapGeometry: null
     property var selectionRect: null
     property int hoveredRow: -1
     property int hoveredCol: -1
@@ -38,7 +37,6 @@ KWinComponents.SceneEffect {
             console.log("[PlasmaSnap] not eligible: " + elig.reason); return
         }
         targetWindow = win
-        preSnapGeometry = null
         selectionRect = null
         hoveredRow = -1; hoveredCol = -1
         currentDensity = (root.configuration.defaultDensity || "8x6")
@@ -384,8 +382,6 @@ KWinComponents.SceneEffect {
                     var beforeGeo = win.frameGeometry
                     console.log("[PlasmaSnap] before move: " + beforeGeo.x + "," + beforeGeo.y +
                                 " " + beforeGeo.width + "x" + beforeGeo.height)
-                    root.preSnapGeometry = Qt.rect(beforeGeo.x, beforeGeo.y,
-                                                   beforeGeo.width, beforeGeo.height)
                     var targetRect = Qt.rect(Math.round(tX), Math.round(tY),
                                              Math.round(tW), Math.round(tH))
                     console.log("[PlasmaSnap] setting frameGeometry to: " + targetRect.x + "," +
