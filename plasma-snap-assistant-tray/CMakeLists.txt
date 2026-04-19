@@ -42,3 +42,24 @@ install(FILES resources/plasma-snap-assistant-tray.desktop DESTINATION ${CMAKE_I
 # makes the app discoverable via KRunner / launcher search.
 install(FILES resources/plasma-snap-assistant-tray.desktop DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
 install(FILES resources/plasma-snap-assistant.svg DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps)
+
+# Refresh the hicolor icon-theme cache so Qt/Plasma pick up the new SVG
+# without a logout or manual gtk-update-icon-cache. Skipped when DESTDIR
+# is set (packagers run their own post-install hooks for this) and
+# silently skipped if gtk-update-icon-cache isn't available.
+install(CODE "
+    if(NOT DEFINED ENV{DESTDIR})
+        find_program(GTK_UPDATE_ICON_CACHE_EXE gtk-update-icon-cache)
+        if(GTK_UPDATE_ICON_CACHE_EXE)
+            message(STATUS \"Refreshing hicolor icon cache\")
+            execute_process(
+                COMMAND \"\${GTK_UPDATE_ICON_CACHE_EXE}\" --force --quiet
+                        \"${CMAKE_INSTALL_FULL_DATAROOTDIR}/icons/hicolor\"
+                RESULT_VARIABLE _psa_icon_cache_rc
+            )
+            if(NOT _psa_icon_cache_rc EQUAL 0)
+                message(WARNING \"gtk-update-icon-cache returned \${_psa_icon_cache_rc}; tray icon may not appear until next login\")
+            endif()
+        endif()
+    endif()
+")
