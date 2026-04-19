@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg>
+    <kcfgfile name="kwinrc"/>
+    <group name="PlasmaSnap">
+        <entry name="defaultDensity" type="String">
+            <default>8x6</default>
+            <label>Default grid density</label>
+        </entry>
+        <entry name="shortcutKey" type="String">
+            <default>Meta+J</default>
+            <label>Shortcut key</label>
+        </entry>
+    </group>
+</kcfg>

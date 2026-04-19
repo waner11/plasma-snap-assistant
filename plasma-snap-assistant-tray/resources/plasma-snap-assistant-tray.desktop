@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Plasma Snap Assistant
+Exec=plasma-snap-assistant-tray
+Icon=plasmasnap-grid
+OnlyShowIn=KDE;
+X-KDE-autostart-condition=plasma-snap-assistantrc:General:trayIconEnabled:true
