@@ -25,15 +25,6 @@ if command -v qdbus6 >/dev/null 2>&1; then
   else
     echo "[PlasmaSnap] KWin reconfigure requested"
   fi
-
-  token_value=${PLASMA_SNAP_TOKEN:-0}
-  token_value=$((token_value + 1))
-  echo "[PlasmaSnap] Tray-to-Effect token hook (config-only test path):"
-  if command -v kwriteconfig6 >/dev/null 2>&1; then
-    echo "[PlasmaSnap]   kwriteconfig6 --file kwinrc --group PlasmaSnap --key trayActivationToken \"$token_value\""
-  else
-    echo "[PlasmaSnap]   kwriteconfig6 is unavailable; this hook requires updating kwinrc in your environment"
-  fi
 else
-  echo "[PlasmaSnap] qdbus6 unavailable; tray activation validation is limited to external constraints"
+  echo "[PlasmaSnap] qdbus6 unavailable; skipping KWin reconfigure request"
 fi

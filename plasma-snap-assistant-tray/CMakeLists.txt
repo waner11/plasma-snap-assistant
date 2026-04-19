@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
+include(GNUInstallDirs)
+
 find_package(Qt6 REQUIRED COMPONENTS Core DBus Widgets)
 find_package(KF6 REQUIRED COMPONENTS Notifications Config CoreAddons StatusNotifierItem)
 
@@ -24,5 +26,5 @@ target_link_libraries(plasma-snap-assistant-tray PRIVATE
 )
 
 install(TARGETS plasma-snap-assistant-tray DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(FILES resources/plasma-snap-assistant-tray.desktop DESTINATION /etc/xdg/autostart)
+install(FILES resources/plasma-snap-assistant-tray.desktop DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/xdg/autostart)
 install(FILES resources/plasma-snap-assistant.svg DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps)

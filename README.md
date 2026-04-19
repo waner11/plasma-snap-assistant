@@ -38,7 +38,9 @@ yay -S plasma-snap-assistant
 ### Using the Makefile
 
 ```bash
-make install       # Install effect + build and run tray companion
+make install       # Install effect + build tray companion (does not run it)
+# Then, optionally, launch the tray:
+./plasma-snap-assistant-tray/build/plasma-snap-assistant-tray &
 ```
 
 ### Manual installation

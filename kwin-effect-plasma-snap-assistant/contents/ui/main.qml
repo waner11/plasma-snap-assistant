@@ -113,6 +113,9 @@ KWinComponents.SceneEffect {
 
             property bool isTargetScreen: false
             property var zones: []
+            // Work area (screen minus panels/struts). Recomputed in recomputeZones
+            // so zones don't slide under docks/panels.
+            property var workArea: null
             property int dragStartRow: -1
             property int dragStartCol: -1
             property bool isDragging: false
@@ -130,14 +133,31 @@ KWinComponents.SceneEffect {
                                   cy >= sg.y && cy < sg.y + sg.height)
             }
 
+            function computeWorkArea() {
+                if (!targetScreen) return null
+                var vd = KWinComponents.Workspace.currentDesktop
+                try {
+                    var wa = KWinComponents.Workspace.clientArea(
+                        KWinComponents.Workspace.PlacementArea, targetScreen, vd)
+                    if (wa && wa.width > 0 && wa.height > 0) {
+                        return {x: wa.x, y: wa.y, width: wa.width, height: wa.height}
+                    }
+                } catch (e) {
+                    console.log("[PlasmaSnap] clientArea unavailable: " + e)
+                }
+                var sg = targetScreen.geometry
+                return {x: sg.x, y: sg.y, width: sg.width, height: sg.height}
+            }
+
             function recomputeZones() {
                 if (!isTargetScreen || !root.activeOverlay) { zones = []; return }
-                var sg = targetScreen.geometry
+                workArea = computeWorkArea()
                 try {
-                    zones = ZoneCalc.calculateZones(
-                        {x: sg.x, y: sg.y, width: sg.width, height: sg.height},
-                        root.currentDensity)
-                    console.log("[PlasmaSnap] " + zones.length + " zones on " + targetScreen.name)
+                    zones = ZoneCalc.calculateZones(workArea, root.currentDensity)
+                    console.log("[PlasmaSnap] " + zones.length + " zones on " +
+                                targetScreen.name + " workArea " +
+                                workArea.x + "," + workArea.y + " " +
+                                workArea.width + "x" + workArea.height)
                 } catch (e) {
                     console.log("[PlasmaSnap] zone error: " + e)
                     zones = []
@@ -344,8 +364,23 @@ KWinComponents.SceneEffect {
                     var tX = region.x, tY = region.y, tW = region.width, tH = region.height
                     var minW = win.minSize ? win.minSize.width : 0
                     var minH = win.minSize ? win.minSize.height : 0
+                    // KWin reports maxSize as 0 when unconstrained.
+                    var maxW = (win.maxSize && win.maxSize.width > 0) ? win.maxSize.width : 0
+                    var maxH = (win.maxSize && win.maxSize.height > 0) ? win.maxSize.height : 0
                     if (minW > 0 && tW < minW) { tX += (tW - minW) / 2; tW = minW }
                     if (minH > 0 && tH < minH) { tY += (tH - minH) / 2; tH = minH }
+                    if (maxW > 0 && tW > maxW) { tX += (tW - maxW) / 2; tW = maxW }
+                    if (maxH > 0 && tH > maxH) { tY += (tH - maxH) / 2; tH = maxH }
+                    // Clamp to work area so nothing lands under a panel or off-screen.
+                    var wa = screenOverlay.workArea
+                    if (wa) {
+                        if (tW > wa.width) tW = wa.width
+                        if (tH > wa.height) tH = wa.height
+                        if (tX < wa.x) tX = wa.x
+                        if (tY < wa.y) tY = wa.y
+                        if (tX + tW > wa.x + wa.width)  tX = wa.x + wa.width  - tW
+                        if (tY + tH > wa.y + wa.height) tY = wa.y + wa.height - tH
+                    }
                     var beforeGeo = win.frameGeometry
                     console.log("[PlasmaSnap] before move: " + beforeGeo.x + "," + beforeGeo.y +
                                 " " + beforeGeo.width + "x" + beforeGeo.height)

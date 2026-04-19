@@ -11,6 +11,7 @@
 var zoneCalc = require("../kwin-effect-plasma-snap-assistant/contents/js/zoneCalculator.js");
 var parseDensity = zoneCalc.parseDensity;
 var calculateZones = zoneCalc.calculateZones;
+var calculateRegion = zoneCalc.calculateRegion;
 
 var totalTests = 0;
 var passedTests = 0;
@@ -315,6 +316,94 @@ for (zIdx = 0; zIdx < oddZones.length; zIdx++) {
 assert(col0Width === 321, "1921px width / 6 cols - first col width 321");
 assert(col1Width === 320, "1921px width / 6 cols - second col width 320");
 verifyTiling(oddZones, oddGeo, "6x4", "1921x1080 6x4");
+
+// ============================================================
+console.log("\n=== calculateRegion ===");
+// ============================================================
+
+// Use a clean, predictable geometry with no remainders: 1920x1080 / 4x4 = 480x270.
+var regionGeo = { x: 0, y: 0, width: 1920, height: 1080 };
+var regionZones = calculateZones(regionGeo, "4x4");
+
+// Single-cell selection at (0,0) -> first zone
+var singleTL = calculateRegion(regionZones, {row: 0, col: 0}, {row: 0, col: 0});
+assert(singleTL.x === 0 && singleTL.y === 0 &&
+       singleTL.width === 480 && singleTL.height === 270,
+    "calculateRegion single-cell (0,0) equals first zone");
+
+// Single-cell in the middle (1,2)
+var singleMid = calculateRegion(regionZones, {row: 1, col: 2}, {row: 1, col: 2});
+assert(singleMid.x === 960 && singleMid.y === 270 &&
+       singleMid.width === 480 && singleMid.height === 270,
+    "calculateRegion single-cell (1,2) matches that zone");
+
+// Multi-cell forward drag (0,0) -> (1,1) = 2x2 block
+var multi = calculateRegion(regionZones, {row: 0, col: 0}, {row: 1, col: 1});
+assert(multi.x === 0 && multi.y === 0 &&
+       multi.width === 960 && multi.height === 540,
+    "calculateRegion multi-cell (0,0)->(1,1) is 960x540 at origin");
+
+// Reversed drag (1,1) -> (0,0) should equal the forward drag
+var reversed = calculateRegion(regionZones, {row: 1, col: 1}, {row: 0, col: 0});
+assert(reversed.x === multi.x && reversed.y === multi.y &&
+       reversed.width === multi.width && reversed.height === multi.height,
+    "calculateRegion reversed drag equals forward drag");
+
+// Partially reversed (row reversed, col forward) (1,0) -> (0,1)
+var mixedRev = calculateRegion(regionZones, {row: 1, col: 0}, {row: 0, col: 1});
+assert(mixedRev.x === 0 && mixedRev.y === 0 &&
+       mixedRev.width === 960 && mixedRev.height === 540,
+    "calculateRegion mixed-reversed drag normalizes corners");
+
+// Full-screen selection (0,0) -> (3,3)
+var full = calculateRegion(regionZones, {row: 0, col: 0}, {row: 3, col: 3});
+assert(full.x === 0 && full.y === 0 &&
+       full.width === 1920 && full.height === 1080,
+    "calculateRegion full (0,0)->(3,3) covers monitor");
+
+// Right/bottom edge zone (3,3)
+var bottomRight = calculateRegion(regionZones, {row: 3, col: 3}, {row: 3, col: 3});
+assert(bottomRight.x === 1440 && bottomRight.y === 810 &&
+       bottomRight.x + bottomRight.width === 1920 &&
+       bottomRight.y + bottomRight.height === 1080,
+    "calculateRegion edge cell (3,3) ends exactly at monitor bounds");
+
+// Edge row along bottom: (3,0) -> (3,3)
+var bottomRow = calculateRegion(regionZones, {row: 3, col: 0}, {row: 3, col: 3});
+assert(bottomRow.x === 0 && bottomRow.y === 810 &&
+       bottomRow.width === 1920 && bottomRow.height === 270,
+    "calculateRegion bottom row spans full width");
+
+// Offset monitor: region output must preserve absolute coords
+var offsetRegionGeo = { x: 1920, y: 0, width: 1920, height: 1080 };
+var offsetRegionZones = calculateZones(offsetRegionGeo, "4x4");
+var offsetRegion = calculateRegion(offsetRegionZones, {row: 0, col: 0}, {row: 1, col: 1});
+assert(offsetRegion.x === 1920 && offsetRegion.y === 0 &&
+       offsetRegion.width === 960 && offsetRegion.height === 540,
+    "calculateRegion respects absolute coords on offset monitor");
+
+// Odd-pixel distribution: 1921x1080 / 6x4 => first col 321, rest 320.
+// Region (0,0)->(0,1) should span first two cols = 321+320 = 641.
+var oddRegionGeo = { x: 0, y: 0, width: 1921, height: 1080 };
+var oddRegionZones = calculateZones(oddRegionGeo, "6x4");
+var oddRegion = calculateRegion(oddRegionZones, {row: 0, col: 0}, {row: 0, col: 1});
+assert(oddRegion.x === 0 && oddRegion.width === 641,
+    "calculateRegion handles remainder pixel distribution across columns");
+
+// Region across all columns on odd geometry must still span the whole width.
+var oddRegionFull = calculateRegion(oddRegionZones, {row: 0, col: 0}, {row: 3, col: 5});
+assert(oddRegionFull.x === 0 && oddRegionFull.y === 0 &&
+       oddRegionFull.width === 1921 && oddRegionFull.height === 1080,
+    "calculateRegion full selection on odd geometry equals monitor size");
+
+// Missing cell should throw
+assertThrows(function() {
+    calculateRegion(regionZones, {row: 0, col: 0}, {row: 99, col: 99});
+}, "calculateRegion throws when end cell not found");
+
+assertThrows(function() {
+    calculateRegion(regionZones, {row: -1, col: -1}, {row: 0, col: 0});
+}, "calculateRegion throws when start cell not found");
 
 // ============================================================
 console.log("\n=== Summary ===");

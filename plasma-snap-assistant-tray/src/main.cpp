@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <QApplication>
+#include <QDBusAbstractAdaptor>
 #include <QDBusConnection>
 #include <QDBusInterface>
 #include <QDBusReply>
@@ -17,15 +18,17 @@
 
 // ---------------------------------------------------------------------------
 // DBus adaptor – published at org.kde.plasma_snap_assistant /Tray
+// Inherits QDBusAbstractAdaptor so QDBusConnection::registerObject with the
+// default ExportAdaptors flag actually exposes activate/quit/isEffectAvailable.
 // ---------------------------------------------------------------------------
-class TrayAdaptor : public QObject
+class TrayAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.kde.plasma_snap_assistant.Tray")
 
 public:
-    explicit TrayAdaptor(QObject *parent = nullptr)
-        : QObject(parent)
+    explicit TrayAdaptor(QObject *parent)
+        : QDBusAbstractAdaptor(parent)
     {
     }
 
