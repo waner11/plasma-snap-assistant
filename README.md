@@ -4,6 +4,24 @@ A KDE Plasma 6 KWin Effect that provides a visual window snapping overlay with s
 
 <!-- TODO: Add screenshot -->
 
+## About this project
+
+I built Plasma Snap Assistant in an afternoon using AI coding tools because I
+personally wanted a FancyZones-style snap overlay on KDE Plasma 6 and could not
+find one that fit my workflow. I want to be up front about how it was built:
+
+- **AI-assisted.** The bulk of the code in this repository — the KWin Effect
+  QML, the C++ tray companion, the build and packaging glue, and the tests —
+  was written with the help of AI coding assistants. I reviewed, tested, and
+  iterated on the output, but I did not hand-write most of it from scratch.
+- **Not a C++ expert.** The tray companion is C++/Qt6/KF6. I am not proficient
+  in C++. If you spot something that looks off in that code, please open an
+  issue or a PR — informed review is very welcome.
+- **Small, personal tool.** This started as a scratch-my-own-itch project, not
+  a polished product. It works for my setup; your mileage may vary.
+
+Contributions, bug reports, and honest feedback are very welcome.
+
 ## Features
 
 - Press Meta+J to open a grid overlay on the active window's monitor
@@ -12,7 +30,6 @@ A KDE Plasma 6 KWin Effect that provides a visual window snapping overlay with s
 - Click a cell to snap the focused window to that cell
 - Click and drag across cells to snap to a multi-cell region
 - Escape or right-click to cancel without changing window geometry
-- Repeated Meta+J toggles the overlay off
 - Window eligibility filtering (rejects fullscreen, dock, dialog, etc.)
 - Multi-monitor aware: overlay appears on the active window's monitor only
 - System tray icon for alternative activation
@@ -76,11 +93,11 @@ Never `Ctrl+C` a running `kwin_*` — it leaves the session without a window man
 
 ## Usage
 
-- **Meta+J** -- toggle the snapping overlay on/off
+- **Meta+J** -- open the snapping overlay on the active window's monitor
 - **Click** a cell to snap the focused window to that zone
 - **Click and drag** across cells to snap to a multi-cell region
 - **1 / 2 / 3** or click the density bar to switch grid density
-- **Escape** or **right-click** to cancel
+- **Escape** or **right-click** to cancel without changing window geometry
 
 ## Configuration
 
