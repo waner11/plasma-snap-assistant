@@ -41,7 +41,7 @@ install(FILES resources/plasma-snap-assistant-tray.desktop DESTINATION ${CMAKE_I
 # App entry — lets xdg-desktop-portal resolve app info for the tray, and
 # makes the app discoverable via KRunner / launcher search.
 install(FILES resources/plasma-snap-assistant-tray.desktop DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
-install(FILES resources/plasma-snap-assistant.svg DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps)
+install(FILES resources/plasmasnap-grid.svg DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps)
 
 # Refresh the hicolor icon-theme cache so Qt/Plasma pick up the new SVG
 # without a logout or manual gtk-update-icon-cache. Skipped when DESTDIR

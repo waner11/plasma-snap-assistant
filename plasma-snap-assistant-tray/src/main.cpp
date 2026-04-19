@@ -73,8 +73,15 @@ public:
     {
         // --- KStatusNotifierItem (Wayland-safe tray icon) ---
         m_tray = new KStatusNotifierItem(QStringLiteral("plasma-snap-assistant"), this);
-        m_tray->setIconByName(QStringLiteral("plasma-snap-assistant"));
-        m_tray->setToolTipIconByName(QStringLiteral("plasma-snap-assistant"));
+        // The icon name is intentionally distinct from the SNI id above.
+        // The XDG Icon Theme Spec's dash-fallback means any icon whose name
+        // starts with "plasma-" resolves to breeze's generic "plasma" logo
+        // before the per-theme lookup ever reaches hicolor. Using a name
+        // that has no dash-prefix match in the active theme (breeze/breeze-dark)
+        // ensures our real icon at hicolor/scalable/apps/plasmasnap-grid.svg
+        // is the one that's actually rendered in the tray.
+        m_tray->setIconByName(QStringLiteral("plasmasnap-grid"));
+        m_tray->setToolTipIconByName(QStringLiteral("plasmasnap-grid"));
         m_tray->setToolTipTitle(QStringLiteral("Plasma Snap Assistant"));
         m_tray->setToolTipSubTitle(QStringLiteral("Click to snap a window"));
         m_tray->setCategory(KStatusNotifierItem::ApplicationStatus);

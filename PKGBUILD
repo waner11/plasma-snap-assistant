@@ -35,7 +35,9 @@ package() {
     install -Dm644 plasma-snap-assistant-tray/resources/plasma-snap-assistant-tray.desktop \
         "$pkgdir/etc/xdg/autostart/plasma-snap-assistant-tray.desktop"
 
-    # Install icon
-    install -Dm644 plasma-snap-assistant-tray/resources/plasma-snap-assistant.svg \
-        "$pkgdir/usr/share/icons/hicolor/scalable/apps/plasma-snap-assistant.svg"
+    # Install icon. The filename must not start with "plasma-" because the
+    # XDG dash-fallback would otherwise shadow it with breeze's generic
+    # "plasma" logo.
+    install -Dm644 plasma-snap-assistant-tray/resources/plasmasnap-grid.svg \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/plasmasnap-grid.svg"
 }
