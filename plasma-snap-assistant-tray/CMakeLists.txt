@@ -9,7 +9,14 @@ set(CMAKE_AUTOMOC ON)
 include(GNUInstallDirs)
 
 find_package(Qt6 REQUIRED COMPONENTS Core DBus Widgets)
-find_package(KF6 REQUIRED COMPONENTS Notifications Config CoreAddons StatusNotifierItem)
+
+# KF6 frameworks ship per-component CMake configs (e.g. KF6NotificationsConfig.cmake).
+# Using per-component find_package calls works on every distro; the KF6-umbrella
+# form only works where a meta KF6Config.cmake is installed.
+find_package(KF6Notifications REQUIRED)
+find_package(KF6Config REQUIRED)
+find_package(KF6CoreAddons REQUIRED)
+find_package(KF6StatusNotifierItem REQUIRED)
 
 add_executable(plasma-snap-assistant-tray
     src/main.cpp
