@@ -150,6 +150,17 @@ console.log("kwin-effect-plasma-snap-assistant/contents/ui/main.qml");
         "root type is KWinComponents.SceneEffect");
     report(/delegate\s*:\s*Component/.test(src),
         "delegate: Component is present");
+
+    // Task: target-window selection must survive focus shifts at activation
+    // time (tray click shifts focus between the replayed shortcut and the
+    // effect's activeWindow read). findBestTargetWindow is the helper that
+    // encodes the primary-active-then-stacking-order-fallback strategy.
+    report(/function\s+findBestTargetWindow\s*\(/.test(src),
+        "findBestTargetWindow() helper exists");
+    report(/KWinComponents\.Workspace\.stackingOrder/.test(src),
+        "fallback path reads Workspace.stackingOrder");
+    report(/beginOverlayActivation[\s\S]{0,200}findBestTargetWindow/.test(src),
+        "beginOverlayActivation uses findBestTargetWindow (not raw activeWindow)");
 })();
 
 console.log("");

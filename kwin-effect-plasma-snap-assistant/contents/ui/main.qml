@@ -28,14 +28,49 @@ KWinComponents.SceneEffect {
     property int hoveredRow: -1
     property int hoveredCol: -1
 
+    // Pick the window we should snap. Tray activation replays the global
+    // shortcut, and focus can shift to the tray/panel between the click
+    // and this callback; that made `activeWindow` unreliable in practice.
+    // Strategy:
+    //   1. Primary: current activeWindow, if it passes eligibility.
+    //   2. Fallback: highest-stacked eligible window on the current desktop
+    //      (topmost = last index in stackingOrder). Preserves the previous
+    //      eligibility contract — nothing that was rejected before becomes
+    //      accepted here.
+    function findBestTargetWindow() {
+        var active = KWinComponents.Workspace.activeWindow
+        if (active) {
+            var elig = EligibilityFilter.checkEligibility(active)
+            if (elig.eligible) {
+                console.log("[PlasmaSnap] target: active window '" +
+                            active.caption + "' (primary path)")
+                return active
+            }
+            console.log("[PlasmaSnap] active window ineligible: " +
+                        elig.reason + " — trying stacking-order fallback")
+        } else {
+            console.log("[PlasmaSnap] no active window — trying stacking-order fallback")
+        }
+        var stack = KWinComponents.Workspace.stackingOrder
+        if (stack && stack.length) {
+            for (var i = stack.length - 1; i >= 0; i--) {
+                var w = stack[i]
+                if (!w) continue
+                if (EligibilityFilter.checkEligibility(w).eligible) {
+                    console.log("[PlasmaSnap] target: '" + w.caption +
+                                "' (fallback: topmost eligible in stack)")
+                    return w
+                }
+            }
+        }
+        console.log("[PlasmaSnap] no eligible window found for activation")
+        return null
+    }
+
     function beginOverlayActivation(reason) {
         if (activeOverlay) { deactivateOverlay("toggle"); return }
-        var win = KWinComponents.Workspace.activeWindow
-        if (!win) { console.log("[PlasmaSnap] no active window"); return }
-        var elig = EligibilityFilter.checkEligibility(win)
-        if (!elig.eligible) {
-            console.log("[PlasmaSnap] not eligible: " + elig.reason); return
-        }
+        var win = findBestTargetWindow()
+        if (!win) return
         targetWindow = win
         selectionRect = null
         hoveredRow = -1; hoveredCol = -1
