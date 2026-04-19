@@ -1,4 +1,4 @@
-# Maintainer: Plasma Snap Assistant contributors
+# Maintainer: Waner Pena <wanerpena@gmail.com>
 pkgname=plasma-snap-assistant
 pkgver=0.1.0
 pkgrel=1
@@ -8,8 +8,8 @@ url="https://github.com/waner11/plasma-snap-assistant"
 license=('GPL-2.0-or-later')
 depends=('kwin' 'qt6-base' 'knotifications' 'kconfig' 'kcoreaddons' 'kstatusnotifieritem')
 makedepends=('cmake' 'extra-cmake-modules' 'qt6-tools')
-source=("$pkgname-$pkgver.tar.gz")
-sha256sums=('SKIP')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('22f9d7d5e18d5dd96031cf08222df7f310088084d2bdba14585e878b535bd86c')
 
 build() {
     cd "$srcdir/$pkgname-$pkgver"
@@ -34,6 +34,7 @@ package() {
     #   /etc/xdg/autostart/plasma-snap-assistant-tray.desktop
     #   /usr/share/applications/plasma-snap-assistant-tray.desktop
     #   /usr/share/icons/hicolor/scalable/apps/plasmasnap-grid.svg
+    #   /usr/share/knotifications6/plasma-snap-assistant-tray.notifyrc
     #   /etc/xdg/plasma-snap-assistantrc (system-wide default tray config)
     # The install-time gtk-update-icon-cache step self-skips because DESTDIR is set.
     DESTDIR="$pkgdir" cmake --install build-tray
