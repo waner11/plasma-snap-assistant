@@ -33,5 +33,12 @@ target_link_libraries(plasma-snap-assistant-tray PRIVATE
 )
 
 install(TARGETS plasma-snap-assistant-tray DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(FILES resources/plasma-snap-assistant-tray.desktop DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/xdg/autostart)
+# Autostart entry — session manager triggers launch at login.
+# Use the FULL_SYSCONFDIR variant so GNUInstallDirs' /usr → /etc special case
+# applies; otherwise the relative form resolves to /usr/etc/xdg/autostart,
+# which Plasma/XDG do not read.
+install(FILES resources/plasma-snap-assistant-tray.desktop DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/xdg/autostart)
+# App entry — lets xdg-desktop-portal resolve app info for the tray, and
+# makes the app discoverable via KRunner / launcher search.
+install(FILES resources/plasma-snap-assistant-tray.desktop DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
 install(FILES resources/plasma-snap-assistant.svg DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps)
