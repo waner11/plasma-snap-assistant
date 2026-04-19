@@ -1,0 +1,10 @@
+[Global]
+IconName=plasmasnap-grid
+Name=Plasma Snap Assistant
+Comment=System tray companion for the Plasma Snap Assistant KWin effect
+
+[Event/effectNotAvailable]
+Name=Snap effect unavailable
+Comment=Shown when the Plasma Snap Assistant KWin effect is not loaded or the activation shortcut could not be invoked
+IconName=dialog-warning
+Action=Popup

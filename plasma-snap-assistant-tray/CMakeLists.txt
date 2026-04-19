@@ -42,6 +42,11 @@ install(FILES resources/plasma-snap-assistant-tray.desktop DESTINATION ${CMAKE_I
 # makes the app discoverable via KRunner / launcher search.
 install(FILES resources/plasma-snap-assistant-tray.desktop DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
 install(FILES resources/plasmasnap-grid.svg DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps)
+# KNotification event metadata. KF6 KNotification resolves <componentName>.notifyrc
+# via QStandardPaths under GenericDataLocation, which includes
+# ${CMAKE_INSTALL_DATAROOTDIR}/knotifications6. The basename MUST match
+# KAboutData::componentName ("plasma-snap-assistant-tray") set in src/main.cpp.
+install(FILES resources/plasma-snap-assistant-tray.notifyrc DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/knotifications6)
 # Default config. Installed to /etc/xdg so KConfig picks it up as the
 # system-wide default; the X-KDE-autostart-condition in the .desktop file
 # references the same file/group/key, so the tray only autostarts when
