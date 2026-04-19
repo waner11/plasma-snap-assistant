@@ -2,7 +2,7 @@
 
 A KDE Plasma 6 KWin Effect that provides a visual window snapping overlay with selectable grid zones.
 
-<!-- TODO: Add screenshot -->
+![Plasma Snap Assistant in action](docs/windowSnap.gif)
 
 ## About this project
 
