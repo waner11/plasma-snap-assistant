@@ -32,7 +32,7 @@ Contributions, bug reports, and honest feedback are very welcome.
 - Escape or right-click to cancel without changing window geometry
 - Window eligibility filtering (rejects fullscreen, dock, dialog, etc.)
 - Multi-monitor aware: overlay appears on the active window's monitor only
-- System tray icon for alternative activation
+- System tray icon (provided by a separate tray companion; autostarts after `make install`)
 - KConfig settings for default density and shortcut key
 - Tested on KWin X11; built with standard KWin QML types that are also available on Wayland
 
@@ -55,9 +55,32 @@ yay -S plasma-snap-assistant
 ### Using the Makefile
 
 ```bash
-make install       # Install effect + build tray companion (does not run it)
-# Then, optionally, launch the tray:
-./plasma-snap-assistant-tray/build/plasma-snap-assistant-tray &
+make install       # Install effect (per-user) + install tray system-wide
+```
+
+This target:
+
+- installs the KWin effect to `~/.local/share/kwin/effects/` via `kpackagetool6`
+  (no sudo),
+- builds the tray with `-DCMAKE_INSTALL_PREFIX=/usr` and runs
+  `sudo cmake --install`, which places:
+  - `/usr/bin/plasma-snap-assistant-tray`
+  - `/usr/share/icons/hicolor/scalable/apps/plasma-snap-assistant.svg`
+  - `/etc/xdg/autostart/plasma-snap-assistant-tray.desktop`
+
+You will be prompted for your sudo password during the tray step.
+
+The tray icon will appear in your Plasma system tray automatically on next
+login. To start it immediately in the current session:
+
+```bash
+plasma-snap-assistant-tray &
+```
+
+To remove everything:
+
+```bash
+make uninstall     # Removes effect + tray (uses sudo for the tray)
 ```
 
 ### Manual installation
@@ -68,10 +91,16 @@ kpackagetool6 --type=KWin/Effect --install kwin-effect-plasma-snap-assistant/
 kwriteconfig6 --file kwinrc --group Plugins --key plasma-snap-assistantEnabled true
 qdbus6 org.kde.KWin /KWin reconfigure
 
-# Build tray companion
-cmake -S plasma-snap-assistant-tray -B plasma-snap-assistant-tray/build
+# Build + install tray companion (installs to /usr/bin, hicolor icon theme,
+# and /etc/xdg/autostart so it starts with the Plasma session)
+cmake -S plasma-snap-assistant-tray -B plasma-snap-assistant-tray/build \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_BUILD_TYPE=Release
 cmake --build plasma-snap-assistant-tray/build
-./plasma-snap-assistant-tray/build/plasma-snap-assistant-tray &
+sudo cmake --install plasma-snap-assistant-tray/build
+
+# Start it now (it will also autostart on next login)
+plasma-snap-assistant-tray &
 ```
 
 ### Restarting KWin to pick up QML changes
@@ -148,8 +177,8 @@ explicitly. Bottom to top:
 ## Development
 
 ```bash
-make install        # Install effect + build tray
-make uninstall      # Remove effect
+make install        # Install effect (per-user) + install tray system-wide (sudo)
+make uninstall      # Remove effect + tray
 make clean          # Clean build artifacts
 ```
 

@@ -1,4 +1,4 @@
-.PHONY: install install-effect install-tray build-tray clean uninstall test
+.PHONY: install install-effect install-tray build-tray clean uninstall uninstall-tray test
 
 install: install-effect install-tray
 
@@ -10,11 +10,20 @@ install-effect:
 
 build-tray:
 	mkdir -p plasma-snap-assistant-tray/build
-	cmake -S plasma-snap-assistant-tray -B plasma-snap-assistant-tray/build
+	cmake -S plasma-snap-assistant-tray -B plasma-snap-assistant-tray/build \
+		-DCMAKE_INSTALL_PREFIX=/usr \
+		-DCMAKE_BUILD_TYPE=Release
 	cmake --build plasma-snap-assistant-tray/build
 
+# Installs /usr/bin/plasma-snap-assistant-tray, the hicolor icon,
+# and /etc/xdg/autostart/plasma-snap-assistant-tray.desktop (needs sudo).
+# The tray will start automatically on next Plasma login.
 install-tray: build-tray
-	@echo "Tray binary at: plasma-snap-assistant-tray/build/plasma-snap-assistant-tray"
+	sudo cmake --install plasma-snap-assistant-tray/build
+	@echo ""
+	@echo "Tray installed. It will autostart on next Plasma login."
+	@echo "To launch it now in the current session:"
+	@echo "    plasma-snap-assistant-tray &"
 
 test:
 	node tests/zoneCalculator.test.js
@@ -23,7 +32,16 @@ test:
 clean:
 	rm -rf plasma-snap-assistant-tray/build
 
-uninstall:
+uninstall: uninstall-tray
 	kpackagetool6 --type=KWin/Effect --remove plasma-snap-assistant 2>/dev/null || true
 	kwriteconfig6 --file kwinrc --group Plugins --key plasma-snap-assistantEnabled false
 	qdbus6 org.kde.KWin /KWin reconfigure
+
+uninstall-tray:
+	@if [ -f plasma-snap-assistant-tray/build/install_manifest.txt ]; then \
+		echo "Removing tray files listed in install_manifest.txt (sudo)..."; \
+		sudo xargs rm -f < plasma-snap-assistant-tray/build/install_manifest.txt; \
+	else \
+		echo "No install_manifest.txt found; tray was not installed via 'make install-tray'."; \
+	fi
+	@pkill -x plasma-snap-assistant-tray 2>/dev/null || true
